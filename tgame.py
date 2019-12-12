@@ -1,7 +1,6 @@
 import pytest
 from game_of_greed import Game
 
-
 # IO Testing
 
 def test_greeting(test_game):
@@ -19,6 +18,8 @@ def test_wanna_play_yes(test_game):
 def test_wanna_play_no(test_game):
   set_scripts(['Welcome to Game of Greed',"OK. Maybe another time"],['Wanna play?'],["n"])
   test_game.play()
+
+
 
 #  Scoring Testing
 

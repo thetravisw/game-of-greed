@@ -1,56 +1,160 @@
 import collections
+from calculate_score import calc_score
+import random
+import re
+import copy
+import os
 
 class Game:
   def __init__(self, print_func=print,input_func=input):
     self._print = print_func
     self._input = input_func
+    self.total_rounds = 5
+    self.current_round = 0
 
-  def calculate_score(self, dice):
-    """Input of dice roll as a list.  Output score"""
-    score = 0
-    dice = collections.Counter(dice)
-
-    # checking for 6 dice rolls (straight, 3 pair, McFlurry
-    straight = True
-    pairs = 0
-    if sum(dice.values()) == 6:
-      for i in dice:
-        if dice[i] != 1:
-          straight = False
-        if dice[i] == 2:
-          pairs +=1
-      if straight:
-        return 1500 
-      if pairs == 3:
-        return 1500
-      if dice[5] == 4 and dice[1] ==2:
-        return 2000
-
-    # checking for 3-6 of a kind
-    for i in dice:
-      multiplier = 100*i
-      if i == 1:
-        multiplier*=10
-      if dice[i] > 2:
-        score += (dice[i]-2)*multiplier
-
-    # checking for 1s
-    if dice[1] < 3:
-      score += dice[1]*100
-
-    # checking for 5s
-    if dice [5] < 3:
-      score += dice[5]*50
-    
-    return score
-
-
-
-  def play(self):
+  def initialize(self):
     self._print('Welcome to Game of Greed')
     wanna_play = self._input("Wanna play?")  
     if wanna_play == 'y':
-      print("Great! Check back tomorrow :D")
+      return "new game"
     else:
       print ('OK. Maybe another time')
+      return ""
+
+  def print_rolls(self, rolled_dice):
+    """prints the results of a dice roll.  rolled_dice should be in list form"""
+    print(f'you rolled {rolled_dice}.\n')
+
+
+  def calculate_score (self, dice):
+    """Takes in a list of integers representing dice rolls.  Returns an integer representing the score of that roll in Farkle"""
+    return calc_score(dice)
+
+  def roll_dice(self, n):
+    '''Rolls n dice.   Returns the results as a list'''
+    results = []
+    for _ in range (n):
+      results.append(random.randint(1,6))
+    return results
+
+
+  def convert_data (self, dice, user_input):
+    """dice data is generated in list form, and user input comes in string form.   This function converts both to collections for use elsewhere in the program.  Also returns user input in list form"""
+    dice_c = collections.Counter(dice)
+    dice_collection = collections.Counter(dice)
+    user_input = re.sub(r'" "', '',user_input).split(",")
+    for i in range(0, len(user_input)): 
+      user_input[i] = int(user_input[i]) 
+    keepers_collection = collections.Counter(user_input)
+    return dice_collection, keepers_collection, user_input
+
+  def prompt_keep_dice(self,dice):
+    """Asks the user what dice they dice they want to keep, and calls functions to validate that input.  If input is bad, function recursively calls itself until input is good.  Returns the points scored and the number of dice the player used"""
+    keepers = self._input("Which dice would you like to keep? \nKeeping:")
+    dice_collection, keepers_collection, keepers_as_list = self.convert_data(dice,keepers)
+    valid_input = self.validate_input_matches_roll(dice_collection, keepers_collection)
+    if not valid_input:
+      print("I don't like your sassy little input.   Stick to the dice you actually rolled champ.")
+      score, dice_used = self.prompt_keep_dice(dice)
+    elif self.user_is_cheating(keepers_as_list):
+      print("Try again.   You can't keep non-scoring dice.\n")
+      score, dice_used = self.prompt_keep_dice(dice)
+    else:
+      dice_used = len(keepers_as_list)
+      score = self.calculate_score(keepers_collection)
+      print (f"you scored {score}\n")
+    return score, dice_used
+      
+
+  def user_is_cheating(self, keepers):
+    """Checks that the user isn't cheating by keeping non-scoring dice to try and get 6 fresh ones.  For example, attempting to keep [6,6,1,1] Returns true/false"""
+    potential_score = self.calculate_score(keepers)
+    for i in keepers:
+      val = keepers.pop(0)
+      if potential_score == self.calculate_score(keepers):
+        return True
+      keepers.append(val)
+    return False
+    
+
+  def validate_input_matches_roll(self, dice, keepers):
+    """Checks to make sure the set of kept dice is entirely contained within the set of dice that were rolled.  Returns true/false"""
+    for i in keepers:
+      if keepers[i]>dice[i]:
+        return False
+    return True
+ 
+  def prompt_reroll(self, num):
+    """asks the user if they'd like to re-roll.  Returns true if yes, and false if no, and keeps them trapped in loop until the input is valid"""
+    while True:
+      ans = self._input(f"You have {num} dice left.\nRoll Again?  y/n:  ")
+      if ans == "y":
+        results = True
+        break
+      if ans == "n":
+        results = False
+        break
+      print("Invalid input.  Try again")
+    return results
+
+  
+  def play_one_round(self):
+    """Control function that handles exactly one round of Farkle.  Round structure is as follows:
+    * While the Round is ongoing
+      *  Player Rolls Dice
+      *  Dice Roll is printed to screen
+      *  The score of submitting all dice is evaluted.
+      *  If that score is zero, the player farkled.  Score for the round is 0, and the round is over.
+      *  If the player didn't farkle, they're asked which dice they'd like to keep
+      *  They're asked this repeatedly, until they enter a valid input.
+      *  Score of kept dice is evaluated and added to round score.
+      *  Player is prompted if they'd like to bank or re-roll
+      *  If player banks, round ends.
+      *  If player re-rolls, return to 1
+      
+      Returns score for the round"""
+    
+    score = 0
+    round_ongoing = True
+    dice_left = 6
+    while round_ongoing:
+      dice = self.roll_dice(dice_left)
+      self.print_rolls(dice)
+      # checking for a farkle
+      did_not_farkle = self.calculate_score(dice)
+      print (f"max score on this roll = {did_not_farkle}\n")
+      if not did_not_farkle: #if farkled
+        score = 0
+        break
+      # player did not farkle
+
+      roll_score, dice_used = self.prompt_keep_dice(dice)
+      score += roll_score
+      dice_left -= dice_used
+      if dice_left == 0:
+          dice_left=6
+          print ("Hot Streak! Bonus Dice!")
+      round_ongoing = self.prompt_reroll(dice_left)
+    return score
+
+
+  def play(self):
+    """Main control function.  Runs the actual game"""
+    new_game = self.initialize()
+    if new_game:
+      score = 0
+      while self.current_round < self.total_rounds:
+        print (f"It is round {self.current_round + 1} of {self.total_rounds} and your score is {score}")
+        points = self.play_one_round()
+        os.system('clear')
+        score += points
+        if points == 0:
+          print("You farkled out.  The round is over :(")
+        else:
+          print(f"you scored {points} points last round")
+        self.current_round +=1
+
+
+game = Game()
+game.play()
 
