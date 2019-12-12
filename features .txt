@@ -1,0 +1,11 @@
+
+Application should have unit tests to ensure proper operation
+** Application should simulate rolling between 1 and 6 dice
+** Application should allow user to set aside dice each roll
+** Application should allow “banking” current score or rolling again.
+** Application should keep track of total score
+** Application should keep track of current round
+Testing
+Convert required features into suite of passing tests
+E.g. test_roll
+doing a roll with x number of dice should return sequence of x length random integers between 1 and 6 inclusive
