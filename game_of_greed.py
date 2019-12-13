@@ -9,21 +9,21 @@ class Game:
   def __init__(self, print_func=print,input_func=input):
     self._print = print_func
     self._input = input_func
-    self.total_rounds = 5
+    self.total_rounds = 100_000
     self.current_round = 0
 
-  def initialize(self):
+  def begin(self):
     self._print('Welcome to Game of Greed')
     wanna_play = self._input("Wanna play?")  
     if wanna_play == 'y':
       return "new game"
     else:
-      print ('OK. Maybe another time')
+      self._print ('OK. Maybe another time')
       return ""
 
   def print_rolls(self, rolled_dice):
     """prints the results of a dice roll.  rolled_dice should be in list form"""
-    print(f'you rolled {rolled_dice}.\n')
+    self._print(f'you rolled {rolled_dice}.\n')
 
 
   def calculate_score (self, dice):
@@ -43,6 +43,8 @@ class Game:
     dice_c = collections.Counter(dice)
     dice_collection = collections.Counter(dice)
     user_input = re.sub(r'" "', '',user_input).split(",")
+    if user_input[-1] == "" or user_input[-1] == " ":
+      user_input.pop()
     for i in range(0, len(user_input)): 
       user_input[i] = int(user_input[i]) 
     keepers_collection = collections.Counter(user_input)
@@ -54,15 +56,15 @@ class Game:
     dice_collection, keepers_collection, keepers_as_list = self.convert_data(dice,keepers)
     valid_input = self.validate_input_matches_roll(dice_collection, keepers_collection)
     if not valid_input:
-      print("I don't like your sassy little input.   Stick to the dice you actually rolled champ.")
+      self._print("I don't like your sassy little input.   Stick to the dice you actually rolled champ.")
       score, dice_used = self.prompt_keep_dice(dice)
     elif self.user_is_cheating(keepers_as_list):
-      print("Try again.   You can't keep non-scoring dice.\n")
+      self._print("Try again.   You can't keep non-scoring dice.\n")
       score, dice_used = self.prompt_keep_dice(dice)
     else:
       dice_used = len(keepers_as_list)
       score = self.calculate_score(keepers_collection)
-      print (f"you scored {score}\n")
+      self._print (f"you scored {score}\n")
     return score, dice_used
       
 
@@ -85,17 +87,15 @@ class Game:
     return True
  
   def prompt_reroll(self, num):
-    """asks the user if they'd like to re-roll.  Returns true if yes, and false if no, and keeps them trapped in loop until the input is valid"""
-    while True:
-      ans = self._input(f"You have {num} dice left.\nRoll Again?  y/n:  ")
-      if ans == "y":
-        results = True
-        break
-      if ans == "n":
-        results = False
-        break
-      print("Invalid input.  Try again")
-    return results
+    """asks the user if they'd like to re-roll.  Returns true if yes, and false if no, and keeps them trapped in recursive until the input is valid"""
+    ans = self._input(f"You have {num} dice left.\nRoll Again?  y/n:  ")
+    if ans == "y":
+      return True
+    elif ans == "n":
+      return False
+    else:
+      self._print("Invalid input.  Try again")
+      return self.prompt_reroll(num)
 
   
   def play_one_round(self):
@@ -122,7 +122,7 @@ class Game:
       self.print_rolls(dice)
       # checking for a farkle
       did_not_farkle = self.calculate_score(dice)
-      print (f"max score on this roll = {did_not_farkle}\n")
+      self._print (f"Score on the round thus far: {score}\nmax score possible from these dice = {did_not_farkle}\n")
       if not did_not_farkle: #if farkled
         score = 0
         break
@@ -133,28 +133,28 @@ class Game:
       dice_left -= dice_used
       if dice_left == 0:
           dice_left=6
-          print ("Hot Streak! Bonus Dice!")
+          self._print ("Hot Streak! Bonus Dice!")
       round_ongoing = self.prompt_reroll(dice_left)
     return score
 
 
   def play(self):
     """Main control function.  Runs the actual game"""
-    new_game = self.initialize()
+    new_game = self.begin()
     if new_game:
       score = 0
-      while self.current_round < self.total_rounds:
-        print (f"It is round {self.current_round + 1} of {self.total_rounds} and your score is {score}")
+      for self.current_round in range (self.total_rounds):
+        self._print (f"It is round {self.current_round + 1} of {self.total_rounds} and your score is {score}")
         points = self.play_one_round()
-        os.system('clear')
+        # os.system('clear')
         score += points
         if points == 0:
-          print("You farkled out.  The round is over :(")
+          self._print("You farkled out.  The round is over :(")
         else:
-          print(f"you scored {points} points last round")
-        self.current_round +=1
+          self._print(f"you scored {points} points last round")
+      self._print(f"your final score was {score}")
 
 
-game = Game()
-game.play()
-
+if __name__ == "__main__":
+    game = Game()
+    game.play()
